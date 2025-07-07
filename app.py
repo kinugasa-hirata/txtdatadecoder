@@ -1,27 +1,28 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import re
-import base64
+from openpyxl import load_workbook
 from io import BytesIO
-import matplotlib.pyplot as plt
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
 import tempfile
 import os
 
-st.set_page_config(page_title="Geometric Data Viewer", layout="wide")
+st.set_page_config(page_title="Geometric Data Reader", layout="wide")
 
-def parse_data(file_path):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+def parse_data(file_content):
+    """Parse data from file content string"""
+    if isinstance(file_content, bytes):
+        lines = file_content.decode('utf-8').splitlines()
+    else:
+        lines = file_content.splitlines()
     
-    # Create lists to store data
+    # Create list to store data
     data = []
     
     for line in lines:
+        # Skip empty lines
+        if not line.strip():
+            continue
+            
         # Split the line by semicolons
         parts = line.strip().split(';')
         
@@ -68,190 +69,237 @@ def parse_data(file_path):
     
     return data
 
-def create_pdf(data, filename="geometric_data.pdf"):
-    """
-    Create a PDF file from the geometric data
-    """
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
-    elements = []
+def extract_target_values(data):
+    """Extract the specific values we want to copy to Excel"""
+    distance_values = []
+    int_circle_values = []
     
-    # Add title
-    styles = getSampleStyleSheet()
-    elements.append(Paragraph("Geometric Data Report", styles['Title']))
-    elements.append(Spacer(1, 12))
+    for item in data:
+        if item['Type'] == 'DISTANCE':
+            # For DISTANCE, we want the Z column value (last column in the image)
+            if 'Z' in item:
+                distance_values.append(item['Z'])
+        elif item['Type'] == 'INT-CIRCLE':
+            # For INT-CIRCLE, we want the K column value (last column in the image)
+            if 'K' in item:
+                int_circle_values.append(item['K'])
     
-    # Group data by object type
-    object_types = set(item['Type'] for item in data)
-    
-    for obj_type in sorted(object_types):
-        # Add section title for each object type
-        elements.append(Paragraph(f"{obj_type} Objects", styles['Heading2']))
-        elements.append(Spacer(1, 6))
-        
-        # Filter data for current object type
-        type_data = [item for item in data if item['Type'] == obj_type]
-        
-        if not type_data:
-            continue
-            
-        # Get all keys from all items
-        all_keys = set()
-        for item in type_data:
-            all_keys.update(item.keys())
-        
-        # Sort keys to ensure "ID" and "Type" come first
-        sorted_keys = ["ID", "Type"] + sorted([k for k in all_keys if k not in ["ID", "Type"]])
-        
-        # Create table data
-        table_data = [sorted_keys]  # Header row
-        
-        for item in type_data:
-            row = []
-            for key in sorted_keys:
-                row.append(str(item.get(key, "")))
-            table_data.append(row)
-        
-        # Create table
-        table = Table(table_data)
-        
-        # Style the table
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ])
-        
-        # Apply alternating row colors
-        for i in range(1, len(table_data)):
-            if i % 2 == 0:
-                style.add('BACKGROUND', (0, i), (-1, i), colors.lightgrey)
-                
-        table.setStyle(style)
-        elements.append(table)
-        elements.append(Spacer(1, 12))
-    
-    # Build PDF
-    doc.build(elements)
-    
-    # Get PDF data
-    pdf_data = buffer.getvalue()
-    buffer.close()
-    
-    return pdf_data
+    return distance_values, int_circle_values
 
-def get_download_link(pdf_data, filename="geometric_data.pdf"):
-    """
-    Generate a download link for the PDF file
-    """
-    b64 = base64.b64encode(pdf_data).decode()
-    href = f'<a href="data:application/pdf;base64,{b64}" download="{filename}">Download PDF Report</a>'
-    return href
+def update_excel_file(excel_file, distance_values, int_circle_values, distance_cells, int_circle_cells):
+    """Update Excel file with the extracted values"""
+    try:
+        # Load the workbook
+        wb = load_workbook(excel_file)
+        
+        # Get the active sheet (or you can specify sheet name)
+        ws = wb.active
+        
+        # Update DISTANCE values
+        for i, (value, cell) in enumerate(zip(distance_values, distance_cells)):
+            if cell.strip():  # Only update if cell reference is provided
+                try:
+                    ws[cell.strip()] = value
+                except Exception as e:
+                    st.error(f"Error updating cell {cell}: {e}")
+        
+        # Update INT-CIRCLE values
+        for i, (value, cell) in enumerate(zip(int_circle_values, int_circle_cells)):
+            if cell.strip():  # Only update if cell reference is provided
+                try:
+                    ws[cell.strip()] = value
+                except Exception as e:
+                    st.error(f"Error updating cell {cell}: {e}")
+        
+        # Save to BytesIO object
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return output
+    
+    except Exception as e:
+        st.error(f"Error processing Excel file: {e}")
+        return None
 
 def main():
-    st.title("Geometric Data Visualization")
+    st.title("Geometric Data Reader with Excel Export")
+    st.write("Browse and select a text file with geometric data, then export specific values to Excel.")
     
-    st.write("This application displays the geometric data from an input file.")
-    
-    # File upload option with prominent UI
-    st.subheader("Data Input")
-    uploaded_file = st.file_uploader("Upload your geometric data file (.txt)", type="txt")
-    
-    use_sample_data = st.checkbox("Use sample data (341.txt)", value=(uploaded_file is None))
+    # File upload with more detailed instructions
+    st.subheader("Step 1: Select Geometric Data File")
+    st.write("Click 'Browse files' below to select your geometric data file:")
+    uploaded_file = st.file_uploader(
+        "Choose your geometric data file", 
+        type=["txt", "dat", "csv"],
+        help="Select a .txt, .dat, or .csv file containing geometric data from your local folders"
+    )
     
     if uploaded_file is not None:
-        # Use uploaded file
-        with open("temp_data.txt", "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        file_path = "temp_data.txt"
-        st.success(f"Successfully loaded: {uploaded_file.name}")
-    elif use_sample_data:
-        # Use default file path
-        file_path = "341.txt"
-        st.info("Using sample data from 341.txt")
-    else:
-        st.warning("Please upload a file or check the 'Use sample data' option")
-        return
-    
-    # Parse the data
-    data = parse_data(file_path)
-    
-    # Group by object type
-    object_types = set(item['Type'] for item in data)
-    
-    # Create a multi-tab display
-    st.write(f"**Found {len(object_types)} different object types in the data**")
-    
-    # Convert to DataFrame
-    df = pd.DataFrame(data)
-    
-    # Show all data in a single table
-    st.subheader("All Geometric Data")
-    st.dataframe(df, use_container_width=True)
-    
-    # Show data by type in separate tabs
-    st.subheader("Data by Object Type")
-    tabs = st.tabs([obj_type for obj_type in sorted(object_types)])
-    
-    for i, obj_type in enumerate(sorted(object_types)):
-        with tabs[i]:
-            type_data = [item for item in data if item['Type'] == obj_type]
-            type_df = pd.DataFrame(type_data)
-            st.dataframe(type_df, use_container_width=True)
+        # Read and parse the file
+        file_content = uploaded_file.read()
+        data = parse_data(file_content)
+        
+        if data:
+            st.success(f"Successfully loaded {len(data)} records from {uploaded_file.name}")
             
-            # Add basic statistics for numeric columns
-            numeric_cols = type_df.select_dtypes(include=[np.number]).columns.tolist()
-            if numeric_cols:
-                st.subheader(f"Statistics for {obj_type}")
-                st.dataframe(type_df[numeric_cols].describe(), use_container_width=True)
-        
-        # Export to PDF section
-        st.subheader("Export Data")
-        
-        # Create PDF from the data
-        pdf_data = create_pdf(data)
-        
-        # Provide download link
-        st.markdown(get_download_link(pdf_data), unsafe_allow_html=True)
-        
-        # Add export options
-        col1, col2, col3 = st.columns(3)
-        
-        # Option to also export as CSV
-        csv = df.to_csv(index=False)
-        b64_csv = base64.b64encode(csv.encode()).decode()
-        with col1:
-            st.markdown(
-                f'<a href="data:file/csv;base64,{b64_csv}" download="geometric_data.csv">Download CSV</a>',
-                unsafe_allow_html=True
-            )
-        
-        # Option to export as Excel
-        with col2:
-            buffer = BytesIO()
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                # Write each object type to a different sheet
+            # Convert to DataFrame
+            df = pd.DataFrame(data)
+            
+            # Show all data
+            st.subheader("All Data")
+            st.dataframe(df, use_container_width=True)
+            
+            # Extract target values
+            distance_values, int_circle_values = extract_target_values(data)
+            
+            # Show extracted values
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("📏 DISTANCE Values")
+                if distance_values:
+                    for i, val in enumerate(distance_values, 1):
+                        st.write(f"Value {i}: **{val}**")
+                else:
+                    st.write("No DISTANCE values found")
+            
+            with col2:
+                st.subheader("🔵 INT-CIRCLE Values")
+                if int_circle_values:
+                    for i, val in enumerate(int_circle_values, 1):
+                        st.write(f"Value {i}: **{val}**")
+                else:
+                    st.write("No INT-CIRCLE values found")
+            
+            # Excel export section
+            if distance_values or int_circle_values:
+                st.subheader("Step 2: Export to Excel")
+                
+                # Upload Excel file
+                excel_file = st.file_uploader(
+                    "Upload Excel file to update",
+                    type=["xlsx", "xls"],
+                    help="Select the Excel file where you want to paste the values"
+                )
+                
+                if excel_file is not None:
+                    st.subheader("Step 3: Cell Location Settings")
+                    
+                    # Option to choose between automatic BE column or custom cells
+                    location_option = st.radio(
+                        "Choose how to place the values:",
+                        ["Automatic (Column BE, rows 1-6)", "Custom cell references"],
+                        index=0
+                    )
+                    
+                    if location_option == "Automatic (Column BE, rows 1-6)":
+                        # Automatically set cells to BE1-BE6
+                        distance_cells = [f"BE{i+1}" for i in range(len(distance_values))]
+                        int_circle_cells = [f"BE{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
+                        
+                        st.write("**Values will be placed in:**")
+                        for i, val in enumerate(distance_values):
+                            st.write(f"• DISTANCE value {val} → **BE{i+1}**")
+                        for i, val in enumerate(int_circle_values):
+                            st.write(f"• INT-CIRCLE value {val} → **BE{i+1+len(distance_values)}**")
+                        
+                        has_distance_cells = True
+                        has_int_circle_cells = True
+                        
+                    else:
+                        # Custom cell input (original functionality)
+                        st.write("Enter the cell references where you want to paste the values (e.g., A1, B2, C3):")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.write("**DISTANCE Values Cell References:**")
+                            distance_cells = []
+                            for i in range(len(distance_values)):
+                                cell = st.text_input(
+                                    f"Cell for DISTANCE value {i+1} ({distance_values[i]})",
+                                    key=f"distance_cell_{i}",
+                                    placeholder=f"e.g., BE{i+1}"
+                                )
+                                distance_cells.append(cell)
+                        
+                        with col2:
+                            st.write("**INT-CIRCLE Values Cell References:**")
+                            int_circle_cells = []
+                            for i in range(len(int_circle_values)):
+                                cell = st.text_input(
+                                    f"Cell for INT-CIRCLE value {i+1} ({int_circle_values[i]})",
+                                    key=f"int_circle_cell_{i}",
+                                    placeholder=f"e.g., BE{i+1+len(distance_values)}"
+                                )
+                                int_circle_cells.append(cell)
+                        
+                        # Check if at least one cell reference is provided
+                        has_distance_cells = any(cell.strip() for cell in distance_cells)
+                        has_int_circle_cells = any(cell.strip() for cell in int_circle_cells)
+                    
+                    # Update Excel button
+                    if st.button("📊 Update Excel File", type="primary"):
+                        if (location_option == "Automatic (Column BE, rows 1-6)") or (has_distance_cells or has_int_circle_cells):
+                            updated_excel = update_excel_file(
+                                excel_file, 
+                                distance_values, 
+                                int_circle_values, 
+                                distance_cells, 
+                                int_circle_cells
+                            )
+                            
+                            if updated_excel:
+                                st.success("✅ Excel file updated successfully!")
+                                
+                                # Download button
+                                st.download_button(
+                                    label="💾 Download Updated Excel File",
+                                    data=updated_excel.getvalue(),
+                                    file_name=f"updated_{excel_file.name}",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                )
+                                
+                                # Show summary
+                                st.subheader("Update Summary")
+                                for i, (val, cell) in enumerate(zip(distance_values, distance_cells)):
+                                    if cell.strip():
+                                        st.write(f"✓ DISTANCE value {val} → Cell {cell}")
+                                
+                                for i, (val, cell) in enumerate(zip(int_circle_values, int_circle_cells)):
+                                    if cell.strip():
+                                        st.write(f"✓ INT-CIRCLE value {val} → Cell {cell}")
+                        else:
+                            st.warning("⚠️ Please provide at least one cell reference in custom mode.")
+            
+            # Group by object type and show in separate sections
+            object_types = set(item['Type'] for item in data)
+            
+            if len(object_types) > 1:
+                st.subheader("Data by Object Type")
+                
                 for obj_type in sorted(object_types):
+                    st.write(f"**{obj_type}**")
                     type_data = [item for item in data if item['Type'] == obj_type]
                     type_df = pd.DataFrame(type_data)
-                    type_df.to_excel(writer, sheet_name=obj_type[:31], index=False)  # Excel sheet names limited to 31 chars
-                
-                # Add a sheet with all data
-                df.to_excel(writer, sheet_name='All Data', index=False)
-            
-            b64_excel = base64.b64encode(buffer.getvalue()).decode()
-            st.markdown(
-                f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64_excel}" download="geometric_data.xlsx">Download Excel</a>',
-                unsafe_allow_html=True
-            )
+                    st.dataframe(type_df, use_container_width=True)
+                    st.write("---")
+        else:
+            st.error("No valid data found in the uploaded file")
+    else:
+        st.info("👆 Click 'Browse files' above to select a file from your computer")
         
-        # Add some information about the export
-        with col3:
-            st.info("PDF includes data tables for each object type")
+        # Show file format example
+        st.subheader("Expected File Format")
+        st.write("Your file should contain semicolon-separated data like this:")
+        st.code("""ID1;PLANE;Method;X;Y;Z;A;B;C;;D;Dev
+ID2;CIRCLE;Method;X;Y;Z;I;J;K;;Radius;Dev
+ID3;PT-COMP;Method;X;Y;Z
+ID4;DISTANCE;;X;Y;Z;;;;;Distance
+ID5;INT-CIRCLE;;X;Y;Z;I;J;K;;Radius""", language="text")
+        
+        st.write("**Supported object types:** PLANE, CIRCLE, PT-COMP, DISTANCE, CONE, INT-CIRCLE")
 
 if __name__ == "__main__":
     main()
