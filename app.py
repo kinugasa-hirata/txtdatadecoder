@@ -52,6 +52,8 @@ def parse_data(file_content):
             cols = ['Method', 'X', 'Y', 'Z', 'I', 'J', 'K', '', 'Half-Angle', 'Dev']
         elif obj_type == 'INT-CIRCLE':
             cols = ['', 'X', 'Y', 'Z', 'I', 'J', 'K', '', 'Radius']
+        elif obj_type == 'SYM-POINT':
+            cols = ['', 'X', 'Y', 'Z']
         else:
             # Generic handling for unknown types
             cols = [f'Val{i+1}' for i in range(len(remaining_values))]
@@ -76,9 +78,9 @@ def extract_target_values(data):
     
     for item in data:
         if item['Type'] == 'DISTANCE':
-            # For DISTANCE, we want the Z column value (last column in the image)
-            if 'Z' in item:
-                distance_values.append(item['Z'])
+            # For DISTANCE, we want the absolute value of X column (since distances are always positive)
+            if 'X' in item:
+                distance_values.append(abs(item['X']))
         elif item['Type'] == 'INT-CIRCLE':
             # For INT-CIRCLE, we want the K column value (last column in the image)
             if 'K' in item:
@@ -299,7 +301,7 @@ ID3;PT-COMP;Method;X;Y;Z
 ID4;DISTANCE;;X;Y;Z;;;;;Distance
 ID5;INT-CIRCLE;;X;Y;Z;I;J;K;;Radius""", language="text")
         
-        st.write("**Supported object types:** PLANE, CIRCLE, PT-COMP, DISTANCE, CONE, INT-CIRCLE")
+        st.write("**Supported object types:** PLANE, CIRCLE, PT-COMP, DISTANCE, CONE, INT-CIRCLE, SYM-POINT")
 
 if __name__ == "__main__":
     main()
