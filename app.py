@@ -205,23 +205,23 @@ def main():
                 if excel_file is not None:
                     st.subheader("Step 3: Cell Location Settings")
                     
-                    # Option to choose between automatic BE column or custom cells
+                    # Option to choose between automatic A column or custom cells
                     location_option = st.radio(
                         "Choose how to place the values:",
-                        ["Automatic (Column BE, rows 1-6)", "Custom cell references"],
+                        ["Automatic (Column A, rows 1-6)", "Custom cell references"],
                         index=0
                     )
                     
-                    if location_option == "Automatic (Column BE, rows 1-6)":
-                        # Automatically set cells to BE1-BE6
-                        distance_cells = [f"BE{i+1}" for i in range(len(distance_values))]
-                        int_circle_cells = [f"BE{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
+                    if location_option == "Automatic (Column A, rows 1-6)":
+                        # Automatically set cells to A1-A6
+                        distance_cells = [f"A{i+1}" for i in range(len(distance_values))]
+                        int_circle_cells = [f"A{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
                         
                         st.write("**Values will be placed in:**")
                         for i, val in enumerate(distance_values):
-                            st.write(f"• DISTANCE value {val} → **BE{i+1}**")
+                            st.write(f"• DISTANCE value {val} → **A{i+1}**")
                         for i, val in enumerate(int_circle_values):
-                            st.write(f"• INT-CIRCLE value {val} → **BE{i+1+len(distance_values)}**")
+                            st.write(f"• INT-CIRCLE value {val} → **A{i+1+len(distance_values)}**")
                         
                         has_distance_cells = True
                         has_int_circle_cells = True
@@ -239,7 +239,7 @@ def main():
                                 cell = st.text_input(
                                     f"Cell for DISTANCE value {i+1} ({distance_values[i]})",
                                     key=f"distance_cell_{i}",
-                                    placeholder=f"e.g., BE{i+1}"
+                                    placeholder=f"e.g., A{i+1}"
                                 )
                                 distance_cells.append(cell)
                         
@@ -250,7 +250,7 @@ def main():
                                 cell = st.text_input(
                                     f"Cell for INT-CIRCLE value {i+1} ({int_circle_values[i]})",
                                     key=f"int_circle_cell_{i}",
-                                    placeholder=f"e.g., BE{i+1+len(distance_values)}"
+                                    placeholder=f"e.g., A{i+1+len(distance_values)}"
                                 )
                                 int_circle_cells.append(cell)
                         
@@ -260,7 +260,7 @@ def main():
                     
                     # Update Excel button
                     if st.button("📊 Update Excel File", type="primary"):
-                        if (location_option == "Automatic (Column BE, rows 1-6)") or (has_distance_cells or has_int_circle_cells):
+                        if (location_option == "Automatic (Column A, rows 1-6)") or (has_distance_cells or has_int_circle_cells):
                             updated_excel = update_excel_file(
                                 excel_file, 
                                 distance_values, 
