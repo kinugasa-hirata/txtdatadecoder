@@ -77,18 +77,31 @@ def parse_data(file_content):
 
 def extract_target_values(data):
     """Extract the specific values we want to copy to Excel"""
-    distance_values = []
+    distance_items = []
     int_circle_values = []
     
+    # Collect all DISTANCE and INT-CIRCLE items
     for item in data:
         if item['Type'] == 'DISTANCE':
-            # For DISTANCE, we want the absolute value of X column (since distances are always positive)
-            if 'X' in item:
-                distance_values.append(abs(item['X']))
+            if 'X' in item and 'ID' in item:
+                distance_items.append({
+                    'id': item['ID'], 
+                    'value': round(abs(item['X']), 2)
+                })
         elif item['Type'] == 'INT-CIRCLE':
-            # For INT-CIRCLE, we want the K column value (last column in the image)
-            if 'K' in item:
-                int_circle_values.append(item['K'])
+            # For INT-CIRCLE, we want the Radius column value (not K)
+            if 'Radius' in item:
+                int_circle_values.append(round(item['Radius'], 2))
+    
+    # Sort DISTANCE values in the specific order: ID 3, 2, 1, 4
+    distance_order = ['3', '2', '1', '4']
+    distance_values = []
+    
+    for target_id in distance_order:
+        for item in distance_items:
+            if str(item['id']) == target_id:
+                distance_values.append(item['value'])
+                break
     
     return distance_values, int_circle_values
 
@@ -195,14 +208,14 @@ def main():
                     # Option to choose between automatic BE column or custom cells
                     location_option = st.radio(
                         "Choose how to place the values:",
-                        ["Automatic (Column BE, rows 1-6)", "Custom cell references"],
+                        ["Automatic (Column A, rows 1-6)", "Custom cell references"],
                         index=0
                     )
                     
-                    if location_option == "Automatic (Column BE, rows 1-6)":
+                    if location_option == "Automatic (Column A, rows 1-6)":
                         # Automatically set cells to BE1-BE6
-                        distance_cells = [f"BE{i+1}" for i in range(len(distance_values))]
-                        int_circle_cells = [f"BE{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
+                        distance_cells = [f"A{i+1}" for i in range(len(distance_values))]
+                        int_circle_cells = [f"A{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
                         
                         st.write("**Values will be placed in:**")
                         for i, val in enumerate(distance_values):
@@ -226,7 +239,7 @@ def main():
                                 cell = st.text_input(
                                     f"Cell for DISTANCE value {i+1} ({distance_values[i]})",
                                     key=f"distance_cell_{i}",
-                                    placeholder=f"e.g., BE{i+1}"
+                                    placeholder=f"e.g., A{i+1}"
                                 )
                                 distance_cells.append(cell)
                         
@@ -237,7 +250,7 @@ def main():
                                 cell = st.text_input(
                                     f"Cell for INT-CIRCLE value {i+1} ({int_circle_values[i]})",
                                     key=f"int_circle_cell_{i}",
-                                    placeholder=f"e.g., BE{i+1+len(distance_values)}"
+                                    placeholder=f"e.g., A{i+1+len(distance_values)}"
                                 )
                                 int_circle_cells.append(cell)
                         
