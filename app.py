@@ -142,16 +142,15 @@ def update_excel_file(excel_file, distance_values, int_circle_values, distance_c
         return None
 
 def main():
-    st.title("Geometric Data Reader with Excel Export")
-    st.write("Browse and select a text file with geometric data, then export specific values to Excel.")
+    st.title("全検箇所測定データをExcelに転記するツール")
     
     # File upload with more detailed instructions
-    st.subheader("Step 1: Select Geometric Data File")
-    st.write("Click 'Browse files' below to select your geometric data file:")
+    st.subheader("ステップ１：測定データファイルのアップロード")
+    st.write("以下の形式のファイルをアップロードしてください。")
     uploaded_file = st.file_uploader(
-        "Choose your geometric data file", 
+        "ファイルを選択", 
         type=["txt", "dat", "csv"],
-        help="Select a .txt, .dat, or .csv file containing geometric data from your local folders"
+        help="セミコロン区切りのデータファイルを選択してください"
     )
     
     if uploaded_file is not None:
@@ -166,7 +165,7 @@ def main():
             df = pd.DataFrame(data)
             
             # Show all data
-            st.subheader("All Data")
+            st.subheader("全ての測定データ")
             st.dataframe(df, use_container_width=True)
             
             # Extract target values
@@ -176,7 +175,7 @@ def main():
             col1, col2 = st.columns(2)
             
             with col1:
-                st.subheader("📏 DISTANCE Values")
+                st.subheader("📏 距離データ")
                 if distance_values:
                     for i, val in enumerate(distance_values, 1):
                         st.write(f"Value {i}: **{val}**")
@@ -184,7 +183,7 @@ def main():
                     st.write("No DISTANCE values found")
             
             with col2:
-                st.subheader("🔵 INT-CIRCLE Values")
+                st.subheader("🔵 円の外周データ")
                 if int_circle_values:
                     for i, val in enumerate(int_circle_values, 1):
                         st.write(f"Value {i}: **{val}**")
@@ -193,26 +192,26 @@ def main():
             
             # Excel export section
             if distance_values or int_circle_values:
-                st.subheader("Step 2: Export to Excel")
+                st.subheader("ステップ２：エクセルにエキスポートします。")
                 
                 # Upload Excel file
                 excel_file = st.file_uploader(
-                    "Upload Excel file to update",
+                    "エクセルファイルを選択",
                     type=["xlsx", "xls"],
-                    help="Select the Excel file where you want to paste the values"
+                    help="更新したいExcelファイルを選択してください"
                 )
                 
                 if excel_file is not None:
-                    st.subheader("Step 3: Cell Location Settings")
+                    st.subheader("ステップ３：セルの指定（オプション）")
                     
                     # Option to choose between automatic A column or custom cells
                     location_option = st.radio(
-                        "Choose how to place the values:",
-                        ["Automatic (Column A, rows 1-6)", "Custom cell references"],
+                        "データを移行するセルの指定:",
+                        ["デフォルト設定", "指定する場合"],
                         index=0
                     )
                     
-                    if location_option == "Automatic (Column A, rows 1-6)":
+                    if location_option == "デフォルト設定":
                         # Automatically set cells to A1-A6
                         distance_cells = [f"A{i+1}" for i in range(len(distance_values))]
                         int_circle_cells = [f"A{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
@@ -259,7 +258,7 @@ def main():
                         has_int_circle_cells = any(cell.strip() for cell in int_circle_cells)
                     
                     # Update Excel button
-                    if st.button("📊 Update Excel File", type="primary"):
+                    if st.button("📊 エクセルファイルの更新", type="primary"):
                         if (location_option == "Automatic (Column A, rows 1-6)") or (has_distance_cells or has_int_circle_cells):
                             updated_excel = update_excel_file(
                                 excel_file, 
@@ -270,18 +269,18 @@ def main():
                             )
                             
                             if updated_excel:
-                                st.success("✅ Excel file updated successfully!")
+                                st.success("✅ エクセルファイルの更新が完了しました!")
                                 
                                 # Download button
                                 st.download_button(
-                                    label="💾 Download Updated Excel File",
+                                    label="💾 更新したエクセルファイルのダウンロード",
                                     data=updated_excel.getvalue(),
                                     file_name=f"updated_{excel_file.name}",
                                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 )
                                 
                                 # Show summary
-                                st.subheader("Update Summary")
+                                st.subheader("更新内容の概要")
                                 for i, (val, cell) in enumerate(zip(distance_values, distance_cells)):
                                     if cell.strip():
                                         st.write(f"✓ DISTANCE value {val} → Cell {cell}")
@@ -309,16 +308,16 @@ def main():
     else:
         st.info("👆 Click 'Browse files' above to select a file from your computer")
         
-        # Show file format example
-        st.subheader("Expected File Format")
-        st.write("Your file should contain semicolon-separated data like this:")
-        st.code("""ID1;PLANE;Method;X;Y;Z;A;B;C;;D;Dev
-ID2;CIRCLE;Method;X;Y;Z;I;J;K;;Radius;Dev
-ID3;PT-COMP;Method;X;Y;Z
-ID4;DISTANCE;;X;Y;Z;;;;;Distance
-ID5;INT-CIRCLE;;X;Y;Z;I;J;K;;Radius""", language="text")
+#         # Show file format example
+#         st.subheader("Expected File Format")
+#         st.write("Your file should contain semicolon-separated data like this:")
+#         st.code("""ID1;PLANE;Method;X;Y;Z;A;B;C;;D;Dev
+# ID2;CIRCLE;Method;X;Y;Z;I;J;K;;Radius;Dev
+# ID3;PT-COMP;Method;X;Y;Z
+# ID4;DISTANCE;;X;Y;Z;;;;;Distance
+# ID5;INT-CIRCLE;;X;Y;Z;I;J;K;;Radius""", language="text")
         
-        st.write("**Supported object types:** PLANE, CIRCLE, PT-COMP, DISTANCE, CONE, INT-CIRCLE, SYM-POINT")
+#         st.write("**Supported object types:** PLANE, CIRCLE, PT-COMP, DISTANCE, CONE, INT-CIRCLE, SYM-POINT")
 
 if __name__ == "__main__":
     main()
