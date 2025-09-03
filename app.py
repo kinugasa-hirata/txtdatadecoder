@@ -247,7 +247,7 @@ def main():
                             int_circle_cells = []
                             for i in range(len(int_circle_values)):
                                 cell = st.text_input(
-                                    f"Cell for INT-CIRCLE value {i+4} ({int_circle_values[i]})",
+                                    f"Cell for INT-CIRCLE value {i+1} ({int_circle_values[i]})",
                                     key=f"int_circle_cell_{i}",
                                     placeholder=f"e.g., A{i+1+len(distance_values)}"
                                 )
