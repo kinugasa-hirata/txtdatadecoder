@@ -192,7 +192,7 @@ def main():
             
             # Excel export section
             if distance_values or int_circle_values:
-                st.subheader("ステップ２：エクセルにエキスポートします。")
+                st.subheader("ステップ２：アップロードしたエクセルファイルの指定セルにデータを出力します。")
                 
                 # Upload Excel file
                 excel_file = st.file_uploader(
@@ -247,7 +247,7 @@ def main():
                             int_circle_cells = []
                             for i in range(len(int_circle_values)):
                                 cell = st.text_input(
-                                    f"Cell for INT-CIRCLE value {i+1} ({int_circle_values[i]})",
+                                    f"Cell for INT-CIRCLE value {i+4} ({int_circle_values[i]})",
                                     key=f"int_circle_cell_{i}",
                                     placeholder=f"e.g., A{i+1+len(distance_values)}"
                                 )
@@ -291,18 +291,18 @@ def main():
                         else:
                             st.warning("⚠️ Please provide at least one cell reference in custom mode.")
             
-            # Group by object type and show in separate sections
-            object_types = set(item['Type'] for item in data)
+            # # Group by object type and show in separate sections
+            # object_types = set(item['Type'] for item in data)
             
-            if len(object_types) > 1:
-                st.subheader("Data by Object Type")
+            # if len(object_types) > 1:
+            #     st.subheader("Data by Object Type")
                 
-                for obj_type in sorted(object_types):
-                    st.write(f"**{obj_type}**")
-                    type_data = [item for item in data if item['Type'] == obj_type]
-                    type_df = pd.DataFrame(type_data)
-                    st.dataframe(type_df, use_container_width=True)
-                    st.write("---")
+            #     for obj_type in sorted(object_types):
+            #         st.write(f"**{obj_type}**")
+            #         type_data = [item for item in data if item['Type'] == obj_type]
+            #         type_df = pd.DataFrame(type_data)
+            #         st.dataframe(type_df, use_container_width=True)
+            #         st.write("---")
         else:
             st.error("No valid data found in the uploaded file")
     else:
