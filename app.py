@@ -204,7 +204,7 @@ def main():
                 if excel_file is not None:
                     st.subheader("ステップ３：セルの指定（オプション）")
                     
-                    # Option to choose between automatic A column or custom cells
+                    # Option to choose between automatic BA column or custom cells
                     location_option = st.radio(
                         "データを移行するセルの指定:",
                         ["デフォルト設定", "指定する場合"],
@@ -212,15 +212,15 @@ def main():
                     )
                     
                     if location_option == "デフォルト設定":
-                        # Automatically set cells to A1-A6
-                        distance_cells = [f"A{i+1}" for i in range(len(distance_values))]
-                        int_circle_cells = [f"A{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
+                        # Automatically set cells to BA1-BA6
+                        distance_cells = [f"BA{i+1}" for i in range(len(distance_values))]
+                        int_circle_cells = [f"BA{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
                         
                         st.write("**Values will be placed in:**")
                         for i, val in enumerate(distance_values):
-                            st.write(f"• DISTANCE value {val} → **A{i+1}**")
+                            st.write(f"• DISTANCE value {val} → **BA{i+1}**")
                         for i, val in enumerate(int_circle_values):
-                            st.write(f"• INT-CIRCLE value {val} → **A{i+1+len(distance_values)}**")
+                            st.write(f"• INT-CIRCLE value {val} → **BA{i+1+len(distance_values)}**")
                         
                         has_distance_cells = True
                         has_int_circle_cells = True
@@ -259,7 +259,7 @@ def main():
                     
                     # Update Excel button
                     if st.button("📊 エクセルファイルの更新", type="primary"):
-                        if (location_option == "Automatic (Column A, rows 1-6)") or (has_distance_cells or has_int_circle_cells):
+                        if (location_option == "デフォルト設定") or (has_distance_cells or has_int_circle_cells):
                             updated_excel = update_excel_file(
                                 excel_file, 
                                 distance_values, 
