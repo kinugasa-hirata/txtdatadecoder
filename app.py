@@ -306,7 +306,7 @@ def main():
         else:
             st.error("No valid data found in the uploaded file")
     else:
-        st.info("👆 Click 'Browse files' above to select a file from your computer")
+        st.info("👆 Browse File ボタンを押して処理するテキストデータをアップロードしてください")
         
 #         # Show file format example
 #         st.subheader("Expected File Format")
