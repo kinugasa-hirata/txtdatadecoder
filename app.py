@@ -213,8 +213,8 @@ def main():
                     
                     if location_option == "デフォルト設定":
                         # Automatically set cells to BA1-BA6
-                        distance_cells = [f"BA{i+1}" for i in range(len(distance_values))]
-                        int_circle_cells = [f"BA{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
+                        distance_cells = [f"A{i+1}" for i in range(len(distance_values))]
+                        int_circle_cells = [f"A{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
                         
                         st.write("**Values will be placed in:**")
                         for i, val in enumerate(distance_values):
