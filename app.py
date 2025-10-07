@@ -106,7 +106,7 @@ def extract_target_values(data):
     
     return distance_values, int_circle_values
 
-def update_excel_file(excel_file, distance_values, int_circle_values, distance_cells, int_circle_cells, sheet_name=None):
+def update_excel_file(excel_file, distance_values, int_circle_values, distance_cells, int_circle_cells, sheet_name=None, lot_number=None, inspection_date=None, lot_prefix=None):
     """Update Excel file with the extracted values"""
     try:
         # Load the workbook
@@ -151,6 +151,20 @@ def update_excel_file(excel_file, distance_values, int_circle_values, distance_c
         
         # Track successful writes
         successful_writes = 0
+        
+        # Write LOT information to B column if provided
+        if lot_number:
+            st.write("**Writing LOT information...**")
+            if write_to_cell(ws, "B1", lot_number):
+                successful_writes += 1
+        
+        if inspection_date:
+            if write_to_cell(ws, "B2", inspection_date):
+                successful_writes += 1
+        
+        if lot_prefix:
+            if write_to_cell(ws, "B3", lot_prefix):
+                successful_writes += 1
         
         # Update DISTANCE values
         st.write("**Writing DISTANCE values...**")
