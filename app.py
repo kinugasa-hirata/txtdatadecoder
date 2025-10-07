@@ -303,6 +303,12 @@ def main():
                     st.subheader("ステップ４：LOT情報の入力")
                     st.write("エクセルファイルのB列に出力されるLOT情報を入力してください。")
                     
+                    # Initialize session state if not exists
+                    if 'lot_number' not in st.session_state:
+                        st.session_state['lot_number'] = None
+                        st.session_state['inspection_date'] = None
+                        st.session_state['lot_prefix'] = None
+                    
                     with st.form(key="lot_info_form"):
                         lot_number = st.text_input(
                             "LOT番号を入力してください",
@@ -350,12 +356,6 @@ def main():
                                 st.session_state['lot_prefix'] = lot_prefix
                         else:
                             st.error("❌ LOT番号と検査日の両方を入力してください。")
-                    
-                    # Retrieve from session state if available
-                    if 'lot_number' not in st.session_state:
-                        st.session_state['lot_number'] = None
-                        st.session_state['inspection_date'] = None
-                        st.session_state['lot_prefix'] = None
                     
                     # Update Excel button
                     if st.button("📊 エクセルファイルの更新", type="primary"):
