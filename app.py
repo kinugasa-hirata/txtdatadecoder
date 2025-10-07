@@ -4,8 +4,12 @@ import re
 from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 from io import BytesIO
+import os
 
 st.set_page_config(page_title="Geometric Data Reader", layout="wide")
+
+# Path to the template Excel file in the project
+TEMPLATE_EXCEL_PATH = "LOT追加測定箇所.xlsx"
 
 def parse_data(file_content):
     """Parse data from file content string"""
@@ -174,11 +178,24 @@ def main():
             st.info(f"📊 DISTANCE: {len(distance_values)}件, INT-CIRCLE: {len(int_circle_values)}件")
             
             if distance_values or int_circle_values:
-                st.subheader("ステップ２：エクセルファイルの選択")
-                excel_file = st.file_uploader("エクセルファイルを選択", type=["xlsx"])
+                # Check if template Excel file exists
+                excel_file = None
+                use_template = False
+                
+                if os.path.exists(TEMPLATE_EXCEL_PATH):
+                    st.success(f"✅ テンプレートファイル '{TEMPLATE_EXCEL_PATH}' が見つかりました")
+                    use_template = True
+                    excel_file = TEMPLATE_EXCEL_PATH
+                else:
+                    st.warning(f"⚠️ テンプレートファイル '{TEMPLATE_EXCEL_PATH}' が見つかりません")
+                    st.subheader("ステップ２：エクセルファイルの選択")
+                    uploaded_excel = st.file_uploader("エクセルファイルを選択", type=["xlsx"])
+                    if uploaded_excel:
+                        excel_file = uploaded_excel
                 
                 if excel_file:
-                    st.subheader("ステップ３：セルの指定")
+                    step_num = "ステップ２" if not use_template else "ステップ２"
+                    st.subheader(f"{step_num}：セルの指定")
                     
                     option = st.radio("", ["デフォルト設定 (A列)", "カスタム指定"], index=0)
                     
@@ -194,7 +211,8 @@ def main():
                                           placeholder=f"A{i+1+len(distance_values)}") 
                                           for i in range(len(int_circle_values))]
                     
-                    st.subheader("ステップ４：LOT情報")
+                    step_num = "ステップ３" if not use_template else "ステップ３"
+                    st.subheader(f"{step_num}：LOT情報")
                     
                     with st.form("lot_form"):
                         lot_num = st.text_input("LOT番号", placeholder="例: LOT234(234-245)")
