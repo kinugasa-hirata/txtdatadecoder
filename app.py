@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 from openpyxl import load_workbook
+import openpyxl.cell.cell
 from io import BytesIO
 import tempfile
 import os
@@ -114,21 +115,38 @@ def update_excel_file(excel_file, distance_values, int_circle_values, distance_c
         # Get the active sheet (or you can specify sheet name)
         ws = wb.active
         
+        def write_to_cell(worksheet, cell_ref, value):
+            """Write to a cell, handling merged cells"""
+            try:
+                cell = worksheet[cell_ref]
+                # Check if cell is a merged cell
+                if isinstance(cell, openpyxl.cell.cell.MergedCell):
+                    # Find the merged range that contains this cell
+                    for merged_range in worksheet.merged_cells.ranges:
+                        if cell.coordinate in merged_range:
+                            # Get the top-left cell of the merged range
+                            min_col, min_row, max_col, max_row = merged_range.bounds
+                            top_left_cell = worksheet.cell(row=min_row, column=min_col)
+                            top_left_cell.value = value
+                            st.warning(f"⚠️ Cell {cell_ref} is merged. Writing to top-left cell of merged range instead.")
+                            return True
+                else:
+                    # Normal cell, just write the value
+                    worksheet[cell_ref] = value
+                    return True
+            except Exception as e:
+                st.error(f"Error updating cell {cell_ref}: {e}")
+                return False
+        
         # Update DISTANCE values
         for i, (value, cell) in enumerate(zip(distance_values, distance_cells)):
             if cell.strip():  # Only update if cell reference is provided
-                try:
-                    ws[cell.strip()] = value
-                except Exception as e:
-                    st.error(f"Error updating cell {cell}: {e}")
+                write_to_cell(ws, cell.strip(), value)
         
         # Update INT-CIRCLE values
         for i, (value, cell) in enumerate(zip(int_circle_values, int_circle_cells)):
             if cell.strip():  # Only update if cell reference is provided
-                try:
-                    ws[cell.strip()] = value
-                except Exception as e:
-                    st.error(f"Error updating cell {cell}: {e}")
+                write_to_cell(ws, cell.strip(), value)
         
         # Save to BytesIO object
         output = BytesIO()
@@ -212,7 +230,7 @@ def main():
                     )
                     
                     if location_option == "デフォルト設定":
-                        # Automatically set cells to BA1-BA6
+                        # Automatically set cells to A1-A6
                         distance_cells = [f"A{i+1}" for i in range(len(distance_values))]
                         int_circle_cells = [f"A{i+1+len(distance_values)}" for i in range(len(int_circle_values))]
                         
@@ -290,34 +308,10 @@ def main():
                                         st.write(f"✓ INT-CIRCLE value {val} → Cell {cell}")
                         else:
                             st.warning("⚠️ Please provide at least one cell reference in custom mode.")
-            
-            # # Group by object type and show in separate sections
-            # object_types = set(item['Type'] for item in data)
-            
-            # if len(object_types) > 1:
-            #     st.subheader("Data by Object Type")
-                
-            #     for obj_type in sorted(object_types):
-            #         st.write(f"**{obj_type}**")
-            #         type_data = [item for item in data if item['Type'] == obj_type]
-            #         type_df = pd.DataFrame(type_data)
-            #         st.dataframe(type_df, use_container_width=True)
-            #         st.write("---")
         else:
             st.error("No valid data found in the uploaded file")
     else:
         st.info("👆 Browse File ボタンを押して処理するテキストデータをアップロードしてください")
-        
-#         # Show file format example
-#         st.subheader("Expected File Format")
-#         st.write("Your file should contain semicolon-separated data like this:")
-#         st.code("""ID1;PLANE;Method;X;Y;Z;A;B;C;;D;Dev
-# ID2;CIRCLE;Method;X;Y;Z;I;J;K;;Radius;Dev
-# ID3;PT-COMP;Method;X;Y;Z
-# ID4;DISTANCE;;X;Y;Z;;;;;Distance
-# ID5;INT-CIRCLE;;X;Y;Z;I;J;K;;Radius""", language="text")
-        
-#         st.write("**Supported object types:** PLANE, CIRCLE, PT-COMP, DISTANCE, CONE, INT-CIRCLE, SYM-POINT")
 
 if __name__ == "__main__":
     main()
