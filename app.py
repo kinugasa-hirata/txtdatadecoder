@@ -106,19 +106,29 @@ def extract_target_values(data):
     
     return distance_values, int_circle_values
 
-def update_excel_file(excel_file, distance_values, int_circle_values, distance_cells, int_circle_cells):
+def update_excel_file(excel_file, distance_values, int_circle_values, distance_cells, int_circle_cells, sheet_name=None):
     """Update Excel file with the extracted values"""
     try:
         # Load the workbook
         wb = load_workbook(excel_file)
         
-        # Get the active sheet (or you can specify sheet name)
-        ws = wb.active
+        # Show available sheets
+        st.info(f"📋 Available sheets: {', '.join(wb.sheetnames)}")
+        
+        # Get the specified sheet or active sheet
+        if sheet_name and sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            st.success(f"✓ Using sheet: '{sheet_name}'")
+        else:
+            ws = wb.active
+            st.info(f"✓ Using active sheet: '{ws.title}'")
         
         def write_to_cell(worksheet, cell_ref, value):
             """Write to a cell, handling merged cells"""
             try:
+                from openpyxl.utils import get_column_letter
                 cell = worksheet[cell_ref]
+                
                 # Check if cell is a merged cell
                 if isinstance(cell, openpyxl.cell.cell.MergedCell):
                     # Find the merged range that contains this cell
@@ -128,25 +138,35 @@ def update_excel_file(excel_file, distance_values, int_circle_values, distance_c
                             min_col, min_row, max_col, max_row = merged_range.bounds
                             top_left_cell = worksheet.cell(row=min_row, column=min_col)
                             top_left_cell.value = value
-                            st.warning(f"⚠️ Cell {cell_ref} is merged. Writing to top-left cell of merged range instead.")
+                            st.warning(f"⚠️ Cell {cell_ref} is merged. Wrote {value} to top-left cell {top_left_cell.coordinate}")
                             return True
                 else:
                     # Normal cell, just write the value
                     worksheet[cell_ref] = value
+                    st.success(f"✓ Wrote {value} to cell {cell_ref}")
                     return True
             except Exception as e:
-                st.error(f"Error updating cell {cell_ref}: {e}")
+                st.error(f"❌ Error updating cell {cell_ref}: {e}")
                 return False
         
+        # Track successful writes
+        successful_writes = 0
+        
         # Update DISTANCE values
+        st.write("**Writing DISTANCE values...**")
         for i, (value, cell) in enumerate(zip(distance_values, distance_cells)):
             if cell.strip():  # Only update if cell reference is provided
-                write_to_cell(ws, cell.strip(), value)
+                if write_to_cell(ws, cell.strip(), value):
+                    successful_writes += 1
         
         # Update INT-CIRCLE values
+        st.write("**Writing INT-CIRCLE values...**")
         for i, (value, cell) in enumerate(zip(int_circle_values, int_circle_cells)):
             if cell.strip():  # Only update if cell reference is provided
-                write_to_cell(ws, cell.strip(), value)
+                if write_to_cell(ws, cell.strip(), value):
+                    successful_writes += 1
+        
+        st.info(f"📝 Total successful writes: {successful_writes}")
         
         # Save to BytesIO object
         output = BytesIO()
@@ -222,6 +242,30 @@ def main():
                 if excel_file is not None:
                     st.subheader("ステップ３：セルの指定（オプション）")
                     
+                    # Sheet selection
+                    try:
+                        wb_temp = load_workbook(excel_file)
+                        sheet_names = wb_temp.sheetnames
+                        wb_temp.close()
+                        
+                        # Default to "sheet" if it exists, otherwise use first sheet
+                        default_index = 0
+                        if "sheet" in sheet_names:
+                            default_index = sheet_names.index("sheet")
+                        
+                        selected_sheet = st.selectbox(
+                            "シートを選択:",
+                            options=sheet_names,
+                            index=default_index,
+                            help="データを書き込むシートを選択してください"
+                        )
+                        
+                        if selected_sheet == "sheet":
+                            st.success("✓ 'sheet' シートが選択されています")
+                    except Exception as e:
+                        st.error(f"Error reading Excel sheets: {e}")
+                        selected_sheet = None
+                    
                     # Option to choose between automatic A column or custom cells
                     location_option = st.radio(
                         "データを移行するセルの指定:",
@@ -278,13 +322,15 @@ def main():
                     # Update Excel button
                     if st.button("📊 エクセルファイルの更新", type="primary"):
                         if (location_option == "デフォルト設定") or (has_distance_cells or has_int_circle_cells):
-                            updated_excel = update_excel_file(
-                                excel_file, 
-                                distance_values, 
-                                int_circle_values, 
-                                distance_cells, 
-                                int_circle_cells
-                            )
+                            with st.spinner("Updating Excel file..."):
+                                updated_excel = update_excel_file(
+                                    excel_file, 
+                                    distance_values, 
+                                    int_circle_values, 
+                                    distance_cells, 
+                                    int_circle_cells,
+                                    selected_sheet
+                                )
                             
                             if updated_excel:
                                 st.success("✅ エクセルファイルの更新が完了しました!")
