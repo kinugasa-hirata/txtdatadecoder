@@ -204,7 +204,7 @@ def main():
                 if excel_file is not None:
                     st.subheader("ステップ３：セルの指定（オプション）")
                     
-                    # Option to choose between automatic BA column or custom cells
+                    # Option to choose between automatic A column or custom cells
                     location_option = st.radio(
                         "データを移行するセルの指定:",
                         ["デフォルト設定", "指定する場合"],
@@ -218,9 +218,9 @@ def main():
                         
                         st.write("**Values will be placed in:**")
                         for i, val in enumerate(distance_values):
-                            st.write(f"• DISTANCE value {val} → **BA{i+1}**")
+                            st.write(f"• DISTANCE value {val} → **A{i+1}**")
                         for i, val in enumerate(int_circle_values):
-                            st.write(f"• INT-CIRCLE value {val} → **BA{i+1+len(distance_values)}**")
+                            st.write(f"• INT-CIRCLE value {val} → **A{i+1+len(distance_values)}**")
                         
                         has_distance_cells = True
                         has_int_circle_cells = True
