@@ -106,9 +106,13 @@ def update_excel_file(excel_file, distance_values, int_circle_values, distance_c
                        lot_number=None, inspection_date=None, lot_prefix=None):
     """Update Excel file"""
     try:
-        wb = load_workbook(excel_file)
+        # Load workbook - handle both file path and uploaded file
+        if isinstance(excel_file, str):
+            wb = load_workbook(excel_file)
+        else:
+            wb = load_workbook(excel_file)
+        
         ws = wb["sheet"] if "sheet" in wb.sheetnames else wb.active
-        st.info(f"✓ Using sheet: '{ws.title}'")
         
         def write_cell(cell_ref, value):
             try:
@@ -122,23 +126,22 @@ def update_excel_file(excel_file, distance_values, int_circle_values, distance_c
                 else:
                     cell.value = value
                     return True
-            except Exception as e:
-                st.error(f"Error updating {cell_ref}: {e}")
+            except:
                 return False
         
         count = 0
         
-        if lot_number and write_cell("B1", lot_number):
-            count += 1
-            st.success(f"✓ B1: {lot_number}")
+        if lot_number:
+            if write_cell("B1", lot_number):
+                count += 1
         
-        if inspection_date and write_cell("B2", inspection_date):
-            count += 1
-            st.success(f"✓ B2: {inspection_date}")
+        if inspection_date:
+            if write_cell("B2", inspection_date):
+                count += 1
         
-        if lot_prefix and write_cell("B3", lot_prefix):
-            count += 1
-            st.success(f"✓ B3: {lot_prefix}")
+        if lot_prefix:
+            if write_cell("B3", lot_prefix):
+                count += 1
         
         for value, cell in zip(distance_values, distance_cells):
             if cell.strip() and write_cell(cell.strip(), value):
@@ -148,23 +151,26 @@ def update_excel_file(excel_file, distance_values, int_circle_values, distance_c
             if cell.strip() and write_cell(cell.strip(), value):
                 count += 1
         
-        st.info(f"📝 {count} cells updated")
-        
         output = BytesIO()
         wb.save(output)
         output.seek(0)
         return output
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"エラー: {e}")
         return None
 
 def main():
     st.title("全検箇所測定データをExcelに転記するツール")
     
-    if 'lot_number' not in st.session_state:
-        st.session_state.lot_number = None
-        st.session_state.inspection_date = None
-        st.session_state.lot_prefix = None
+    # Show info about template file
+    with st.expander("ℹ️ セットアップ情報", expanded=False):
+        st.write("""
+        **テンプレートファイルの設定:**
+        
+        プロジェクトフォルダに `LOT追加測定箇所.xlsx` を配置すると、自動的に使用されます。
+        
+        テンプレートファイルがない場合は、手動でアップロードしてください。
+        """)
     
     st.subheader("ステップ１：測定データファイルのアップロード")
     uploaded_file = st.file_uploader("ファイルを選択", type=["txt", "dat", "csv"])
@@ -183,11 +189,11 @@ def main():
                 use_template = False
                 
                 if os.path.exists(TEMPLATE_EXCEL_PATH):
-                    st.success(f"✅ テンプレートファイル '{TEMPLATE_EXCEL_PATH}' が見つかりました")
+                    st.success(f"✅ テンプレートファイルを使用します")
                     use_template = True
                     excel_file = TEMPLATE_EXCEL_PATH
                 else:
-                    st.warning(f"⚠️ テンプレートファイル '{TEMPLATE_EXCEL_PATH}' が見つかりません")
+                    st.info(f"📁 テンプレートファイルが見つかりません。Excelファイルをアップロードしてください。")
                     st.subheader("ステップ２：エクセルファイルの選択")
                     uploaded_excel = st.file_uploader("エクセルファイルを選択", type=["xlsx"])
                     if uploaded_excel:
@@ -214,44 +220,30 @@ def main():
                     step_num = "ステップ３" if not use_template else "ステップ３"
                     st.subheader(f"{step_num}：LOT情報")
                     
-                    with st.form("lot_form"):
-                        lot_num = st.text_input("LOT番号", placeholder="例: LOT234(234-245)")
-                        insp_date = st.text_input("検査日 (YYYY/MM/DD)", placeholder="例: 2025/10/07")
-                        
-                        if lot_num:
-                            prefix = extract_lot_prefix(lot_num)
-                            if prefix:
-                                st.info(f"🔍 プレフィックス: **{prefix}**")
-                        
-                        st.write("**出力:** B1=LOT番号, B2=検査日, B3=プレフィックス")
-                        
-                        submitted = st.form_submit_button("✓ 確認")
+                    lot_num = st.text_input("LOT番号を入力", placeholder="例: LOT234(234-245)")
+                    insp_date = st.text_input("検査日を入力 (YYYY/MM/DD)", placeholder="例: 2025/10/07")
                     
-                    if submitted and lot_num and insp_date:
-                        if validate_date_format(insp_date):
-                            st.session_state.lot_number = lot_num
-                            st.session_state.inspection_date = insp_date
-                            st.session_state.lot_prefix = extract_lot_prefix(lot_num)
-                            st.success("✅ LOT情報を保存しました")
-                        else:
-                            st.error("❌ 日付形式: YYYY/MM/DD")
+                    st.write("**出力先:** B1=LOT番号, B2=検査日, B3=プレフィックス（自動抽出）")
                     
                     if st.button("📊 エクセル更新", type="primary"):
-                        if not st.session_state.lot_number:
-                            st.error("❌ LOT情報を入力してください")
+                        if not lot_num or not insp_date:
+                            st.error("❌ LOT番号と検査日を入力してください")
+                        elif not validate_date_format(insp_date):
+                            st.error("❌ 検査日の形式が正しくありません (YYYY/MM/DD)")
                         else:
-                            with st.spinner("更新中..."):
+                            # Compute prefix automatically
+                            lot_prefix = extract_lot_prefix(lot_num)
+                            
+                            with st.spinner("エクセルファイルを更新中..."):
                                 result = update_excel_file(
                                     excel_file, distance_values, int_circle_values,
                                     distance_cells, int_circle_cells,
-                                    st.session_state.lot_number,
-                                    st.session_state.inspection_date,
-                                    st.session_state.lot_prefix
+                                    lot_num, insp_date, lot_prefix
                                 )
                             
                             if result:
-                                st.success("✅ 完了!")
-                                filename = f"水平ノズル{st.session_state.lot_number}全箇所測定{st.session_state.inspection_date}.xlsx"
+                                st.success("✅ 更新完了!")
+                                filename = f"水平ノズル{lot_num}全箇所測定{insp_date}.xlsx"
                                 st.download_button(
                                     "💾 ダウンロード",
                                     result.getvalue(),
